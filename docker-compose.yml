@@ -1,0 +1,12 @@
+services:
+  backend:
+    container_name: language-ai-backend
+    image: language-ai-backend:${TAG}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8000"
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped

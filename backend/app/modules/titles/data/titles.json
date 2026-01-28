@@ -1,0 +1,20 @@
+{
+  "titles": [
+    {
+      "id": "harry_potter_1",
+      "name": "Harry Potter and the Philosopher's Stone",
+      "universe": "Harry Potter",
+      "language": "EN",
+      "level": "A2",
+      "description": "A young boy discovers he is a wizard and begins his education at a magical school."
+    },
+    {
+      "id": "lord_of_the_rings",
+      "name": "The Lord of the Rings",
+      "universe": "Middle-earth",
+      "language": "EN",
+      "level": "B1",
+      "description": "A journey to destroy a powerful ring that threatens the fate of the world."
+    }
+  ]
+}
