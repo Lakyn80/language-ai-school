@@ -26,5 +26,7 @@ jobs:
 
       - name: Run pytest
         working-directory: backend
+        env:
+          DEEPSEEK_API_KEY: "ci-test-key"
         run: |
           pytest
