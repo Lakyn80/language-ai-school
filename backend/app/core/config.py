@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
 
+    # ---------- RAG ----------
+    rag_index_path: str = "app/modules/rag/index/titles.faiss"
+    rag_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+
     class Config:
         env_file = ".env"
 

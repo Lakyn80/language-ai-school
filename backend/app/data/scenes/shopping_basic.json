@@ -1,0 +1,37 @@
+{
+  "scene_id": "shopping_basic",
+
+  "display_name": "Shopping",
+
+  "level": "A1",
+
+  "location": "shop",
+
+  "learning_goal": "Buying things in a shop.",
+
+  "grammar_targets": [
+    "can",
+    "this",
+    "that"
+  ],
+
+  "vocabulary_core": [
+    "price",
+    "money",
+    "buy",
+    "cheap",
+    "expensive",
+    "shop",
+    "bag"
+  ],
+
+  "required_dialogue": true,
+
+  "dialogue_roles": [
+    "customer",
+    "shop assistant"
+  ],
+
+  "min_dialogue_lines": 6,
+  "max_dialogue_lines": 10
+}

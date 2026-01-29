@@ -1,13 +1,12 @@
 from app.modules.rag.vectorstore import VectorStore
+from app.core.config import settings
 
 
 def search_rag(query: str, k: int = 5):
-    store = VectorStore()
 
-    try:
-        return store.search(query, k=k)
-    except RuntimeError as e:
-        return {
-            "error": str(e),
-            "hint": "Run RAG ingest first"
-        }
+    store = VectorStore(
+        index_path=settings.rag_index_path,
+        model_name=settings.rag_embedding_model
+    )
+
+    return store.search(query, top_k=k)

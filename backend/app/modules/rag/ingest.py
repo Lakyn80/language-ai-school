@@ -1,33 +1,33 @@
 import json
 from pathlib import Path
+
 from app.modules.rag.vectorstore import VectorStore
+from app.core.config import settings
 
-
-TITLES_PATH = Path(__file__).parents[2] / "modules" / "titles" / "data" / "titles.json"
+DATA_DIR = Path("app/data/worlds")
 
 
 def ingest_titles():
-    with open(TITLES_PATH, encoding="utf-8") as f:
-        data = json.load(f)
+    store = VectorStore(
+        index_path=settings.rag_index_path,
+        model_name=settings.rag_embedding_model,
+    )
 
-    texts = []
-    metadatas = []
+    documents = []
 
-    for title in data["titles"]:
-        text = f"""
-        {title['name']}
-        Universe: {title['universe']}
-        Level: {title['level']}
-        Description: {title['description']}
-        """
+    for file in DATA_DIR.glob("*.json"):
+        with open(file, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-        texts.append(text)
-        metadatas.append(title)
+        documents.append(
+            {
+                "id": data.get("world_id"),
+                "text": json.dumps(data, ensure_ascii=False),
+            }
+        )
 
-    store = VectorStore()
-    store.build(texts, metadatas)
-
-    print("✅ Titles ingested into FAISS")
+    store.build_index(documents)
+    print(f"Ingested {len(documents)} worlds.")
 
 
 if __name__ == "__main__":

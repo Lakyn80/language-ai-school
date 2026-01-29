@@ -15,9 +15,19 @@ class VectorStore:
     def _load_model(self):
         if self._model is None:
             from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.model_name)
+
+            # ⬇⬇⬇
+            # lokální load – žádný HF request
+            self._model = SentenceTransformer(
+                self.model_name,
+                device="cpu",
+                cache_folder="/app/.cache"
+            )
 
     def _load_index(self):
+        if self._index is not None:
+            return
+
         if not os.path.exists(self.index_path):
             raise RuntimeError("FAISS index not found. Run ingest first.")
 
@@ -27,12 +37,38 @@ class VectorStore:
         self._index = data["index"]
         self._documents = data["documents"]
 
-    def search(self, query: str, top_k: int = 5) -> List[str]:
-        self._load_model()
-        self._load_index()
+    def build_index(self, documents: List[dict]):
+        from sentence_transformers import SentenceTransformer
+        import faiss
 
-        embeddings = self._model.encode([query])
-        distances, indices = self._index.search(embeddings, top_k)
+        model = SentenceTransformer(
+            self.model_name,
+            device="cpu",
+            cache_folder="/app/.cache"
+        )
+
+        texts = [doc["text"] for doc in documents]
+        embeddings = model.encode(texts)
+
+        dimension = embeddings.shape[1]
+        index = faiss.IndexFlatL2(dimension)
+        index.add(embeddings)
+
+        with open(self.index_path, "wb") as f:
+            pickle.dump(
+                {
+                    "index": index,
+                    "documents": documents,
+                },
+                f,
+            )
+
+    def search(self, query: str, top_k: int = 5) -> List[str]:
+        self._load_index()
+        self._load_model()
+
+        embedding = self._model.encode([query])
+        distances, indices = self._index.search(embedding, top_k)
 
         results = []
         for idx in indices[0]:

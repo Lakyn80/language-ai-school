@@ -1,0 +1,36 @@
+{
+  "scene_id": "restaurant_basic",
+
+  "display_name": "Restaurant",
+
+  "level": "A1",
+
+  "location": "restaurant",
+
+  "learning_goal": "Ordering food politely in a restaurant.",
+
+  "grammar_targets": [
+    "can",
+    "would like"
+  ],
+
+  "vocabulary_core": [
+    "menu",
+    "table",
+    "order",
+    "waiter",
+    "bill",
+    "water",
+    "food"
+  ],
+
+  "required_dialogue": true,
+
+  "dialogue_roles": [
+    "customer",
+    "waiter"
+  ],
+
+  "min_dialogue_lines": 6,
+  "max_dialogue_lines": 10
+}

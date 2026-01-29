@@ -1,14 +1,23 @@
 import json
+import re
 import httpx
+
 from app.core.config import settings
+from app.modules.lessons.schema import LessonResponse
+
+
+def extract_json(text: str) -> dict:
+    text = text.strip()
+
+    if text.startswith("`"):
+        text = re.sub(r"^`json", "", text)
+        text = re.sub(r"^`", "", text)
+        text = re.sub(r"`$", "", text)
+
+    return json.loads(text)
 
 
 def generate_lesson(level: str, context: str) -> dict:
-    """
-    DeepSeek LLM lesson generator.
-    Uses ONLY RAG context.
-    """
-
     if not settings.deepseek_api_key:
         raise RuntimeError("DEEPSEEK_API_KEY is not configured")
 
@@ -16,50 +25,25 @@ def generate_lesson(level: str, context: str) -> dict:
 You are an AI language teacher.
 
 STRICT RULES:
-- Use ONLY the provided context.
-- Do NOT add external knowledge.
-- Do NOT reference real books, movies, authors.
-- Generate completely original educational content.
-- Follow CEFR level strictly: {level}
-
-CEFR RULES:
-
-A1:
-- very short sentences
-- present simple only
-- basic vocabulary
-- max 600 words
-
-A2:
-- present + past simple
-- simple connectors (and, but, because)
-- max 800 words
-
-B1:
-- present, past, future
-- longer sentences
-- simple dialogues
-- max 1000 words
-
-B2:
-- complex grammar
-- opinions and emotions
-- rich vocabulary
-- max 1200 words
+- Use ONLY provided context
+- Do NOT reference real books, movies or authors
+- Do NOT invent worlds
+- CEFR level: {level}
 
 Return VALID JSON ONLY:
 
-{
-  "level": "...",
-  "story": "...",
+{{
+  "level": "{level}",
+  "story": "",
   "vocabulary": [
-    { "word": "", "meaning": "" }
+    {{ "word": "", "meaning": "" }}
   ],
-  "questions": [
-    "..."
-  ],
-  "writing_task": "..."
-}
+  "questions": [],
+  "writing_task": ""
+}}
+
+NO markdown.
+NO explanations.
 """
 
     payload = {
@@ -68,7 +52,7 @@ Return VALID JSON ONLY:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": context},
         ],
-        "temperature": 0.7,
+        "temperature": 0.4,
     }
 
     headers = {
@@ -83,15 +67,18 @@ Return VALID JSON ONLY:
         timeout=120,
     )
 
-    data = response.json()
-
-    content = data["choices"][0]["message"]["content"]
+    raw = response.json()["choices"][0]["message"]["content"]
 
     try:
-        return json.loads(content)
+        data = extract_json(raw)
     except Exception:
         return {
             "level": level,
-            "error": "Invalid JSON returned by DeepSeek",
-            "raw_output": content,
+            "story": raw,
+            "vocabulary": [],
+            "questions": [],
+            "writing_task": "Rewrite the story in your own words.",
         }
+
+    lesson = LessonResponse(**data)
+    return lesson.model_dump()
