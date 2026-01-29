@@ -14,3 +14,6 @@ openai
 # tests
 pytest
 httpx
+
+# db
+sqlalchemy>=2.0,<3.0
