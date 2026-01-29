@@ -3,5 +3,14 @@ uvicorn
 python-dotenv
 pydantic
 pydantic-settings
+
+# RAG
+sentence-transformers
+faiss-cpu
+
+# LLM
+openai
+
+# tests
 pytest
 httpx

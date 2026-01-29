@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 
-from app.core.config import settings
 from app.api.router import api_router
 
 
@@ -16,7 +15,7 @@ def create_app() -> FastAPI:
 
     app.include_router(
         api_router,
-        prefix=settings.api_prefix
+        prefix="/api"
     )
 
     return app

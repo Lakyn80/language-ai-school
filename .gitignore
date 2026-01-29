@@ -39,6 +39,11 @@ dist/
 Thumbs.db
 
 # ======================
-# Docker
+# Docker / env
 # ======================
+.env
 *.log
+docker-compose.dev.yml
+backend/.env
+backend/.dockerignore
+

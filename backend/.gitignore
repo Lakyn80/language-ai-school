@@ -19,3 +19,8 @@ Thumbs.db
 
 # Docker
 *.log
+.venv/
+.cache/
+__pycache__/
+node_modules/
+huggingface cache
