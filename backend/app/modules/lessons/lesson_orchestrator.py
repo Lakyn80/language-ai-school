@@ -1,8 +1,12 @@
 from app.modules.rag.service import search_rag
 from app.modules.lessons.lesson_service import generate_lesson
-from app.modules.lessons.scenes.scene_loader import load_scene
 from app.modules.lessons.cache.lesson_cache import get_cache
 from app.modules.lessons.cache.cache_key import build_lesson_cache_key
+
+
+def load_scene(scene_id: str):
+    from app.modules.scenes.service import get_scene_by_slug
+    return get_scene_by_slug(scene_id)
 
 
 def generate_lesson_full(title_id: str, level: str, scene_id: str):
@@ -22,6 +26,18 @@ def generate_lesson_full(title_id: str, level: str, scene_id: str):
     rag_results = search_rag(title_id, k=5)
 
     scene = load_scene(scene_id)
+    if scene is None:
+        raise FileNotFoundError(f"Scene '{scene_id}' not found")
+
+    scene_data = scene
+    if not isinstance(scene, dict):
+        scene_data = {
+            "location": getattr(scene, "slug", ""),
+            "learning_goal": getattr(scene, "description", ""),
+            "grammar_targets": [],
+            "vocabulary_core": [],
+            "dialogue_roles": [],
+        }
 
     context_blocks = []
 
@@ -35,11 +51,11 @@ def generate_lesson_full(title_id: str, level: str, scene_id: str):
     context_blocks.append(
         f"""
 SCENE:
-Location: {scene["location"]}
-Goal: {scene["learning_goal"]}
-Grammar: {", ".join(scene["grammar_targets"])}
-Vocabulary: {", ".join(scene["vocabulary_core"])}
-Dialogue roles: {", ".join(scene["dialogue_roles"])}
+Location: {scene_data["location"]}
+Goal: {scene_data["learning_goal"]}
+Grammar: {", ".join(scene_data["grammar_targets"])}
+Vocabulary: {", ".join(scene_data["vocabulary_core"])}
+Dialogue roles: {", ".join(scene_data["dialogue_roles"])}
 """
     )
 
@@ -50,7 +66,7 @@ Dialogue roles: {", ".join(scene["dialogue_roles"])}
     result = {
         "level": level,
         "scene_id": scene_id,
-        "scene": scene,
+        "scene": scene_data,
         "context_used": rag_results,
         "lesson": lesson,
     }
