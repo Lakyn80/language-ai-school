@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     rag_index_path: str = "app/modules/rag/index/titles.faiss"
     rag_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    # ---------- REDIS ----------
+    redis_url: str = "redis://redis:6379/0"
+
     # ---------- POSTGRES ----------
     postgres_host: str = "localhost"
     postgres_port: int = 5432

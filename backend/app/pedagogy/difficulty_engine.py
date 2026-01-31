@@ -1,70 +1,48 @@
-import re
-from typing import Dict, List
-
-from app.pedagogy.levels import LEVELS, LevelRules
+from app.pedagogy.cefr.levels import CEFRLevel
+from app.pedagogy.cefr.rules import CEFR_RULES
 
 
-_SENTENCE_SPLIT_RE = re.compile(r"[.!?]+")
+def apply_difficulty_engine(text: str, level: str) -> dict:
+    """
+    Applies CEFR constraints to raw generated text.
 
+    Returns instructions for LLM rewriting.
+    """
 
-def split_sentences(text: str) -> List[str]:
-    return [
+    cefr_level = CEFRLevel(level)
+    rules = CEFR_RULES[cefr_level]
+
+    sentences = [
         s.strip()
-        for s in _SENTENCE_SPLIT_RE.split(text)
+        for s in text.replace("!", ".").replace("?", ".").split(".")
         if s.strip()
     ]
 
+    length_violations = []
 
-def count_words(sentence: str) -> int:
-    return len(re.findall(r"\b\w+\b", sentence))
+    for sentence in sentences:
+        words = sentence.split()
+        if len(words) > rules.max_sentence_words:
+            length_violations.append(sentence)
 
+    instruction = f"""
+CEFR LEVEL: {cefr_level.value}
 
-def validate_sentence_length(
-    sentences: List[str],
-    rules: LevelRules,
-) -> List[str]:
-    violations = []
+RULES:
+- Maximum words per sentence: {rules.max_sentence_words}
+- Allowed tenses: {", ".join(rules.allowed_tenses)}
+- Passive allowed: {rules.allow_passive}
+- Conditionals allowed: {rules.allow_conditionals}
+- Subordinate clauses allowed: {rules.allow_subordinate_clauses}
 
-    for s in sentences:
-        if count_words(s) > rules.max_sentence_words:
-            violations.append(s)
-
-    return violations
-
-
-def build_level_instruction(rules: LevelRules) -> str:
-    return f"""
-LEVEL CONSTRAINTS ({rules.level}):
-
-- Maximum {rules.max_sentence_words} words per sentence.
-- Allowed tenses: {", ".join(rules.allowed_tenses)}.
-- Allowed structures: {", ".join(rules.allowed_structures)}.
-- Forbidden structures: {", ".join(rules.forbidden_structures)}.
-
-You must strictly follow these rules.
-If a structure is forbidden, rewrite the sentence using allowed grammar only.
-""".strip()
-
-
-def apply_difficulty_engine(
-    text: str,
-    level: str,
-) -> Dict:
-    if level not in LEVELS:
-        raise ValueError(f"Unknown level: {level}")
-
-    rules = LEVELS[level]
-
-    sentences = split_sentences(text)
-
-    length_violations = validate_sentence_length(
-        sentences,
-        rules,
-    )
+STRICT MODE:
+You must rewrite the text so that ALL sentences follow CEFR rules.
+If something is forbidden, rephrase it using allowed grammar only.
+"""
 
     return {
-        "level": level,
+        "level": cefr_level.value,
         "sentence_count": len(sentences),
         "length_violations": length_violations,
-        "instruction": build_level_instruction(rules),
+        "instruction": instruction.strip(),
     }
