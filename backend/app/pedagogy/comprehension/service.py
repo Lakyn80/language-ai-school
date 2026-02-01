@@ -5,16 +5,18 @@ import time
 import httpx
 
 from app.core.config import settings
+from app.pedagogy.comprehension.evaluator import semantic_similarity
+from app.pedagogy.comprehension.feedback import extract_missing_and_hallucinations
+from app.pedagogy.comprehension.feedback_text import build_feedback_text
+from app.pedagogy.cefr.scoring import evaluate_cefr_similarity
+
 from .schemas import ReadingEvaluateRequest, ReadingEvaluateResponse
-from .evaluator import semantic_similarity
 
 
-PASS_THRESHOLD = 0.65
 CACHE_TTL_SECONDS = 2592000
 MAX_TRANSLATION_ATTEMPTS = 3
-
-logger = logging.getLogger(__name__)
 _redis_client = None
+logger = logging.getLogger(__name__)
 
 
 def _get_redis_client():
@@ -41,15 +43,23 @@ def _make_cache_key(text: str, target_language: str) -> str:
     return f"translation:{digest}"
 
 
-def translate_to_target(text: str, target_language: str) -> str:
+def translate_to_target(
+    text: str,
+    target_language: str,
+    source_language: str | None = None,
+) -> str:
     if not settings.deepseek_api_key:
         raise RuntimeError("DEEPSEEK_API_KEY is not configured")
 
+    if source_language:
+        direction = f"from {source_language} to {target_language}"
+    else:
+        direction = f"to {target_language}"
+
     system_prompt = (
         "You are a translation engine. "
-        "Translate the user's text into the target language. "
-        "Return only the translated text, with no quotes or extra commentary. "
-        f"Target language: {target_language}"
+        f"Translate the user's text {direction}. "
+        "Return only the translated text, with no quotes or extra commentary."
     )
 
     payload = {
@@ -87,7 +97,11 @@ def translate_to_target(text: str, target_language: str) -> str:
             raise last_exc
 
 
-def translate_to_target_cached(text: str, target_language: str) -> str:
+def translate_to_target_cached(
+    text: str,
+    target_language: str,
+    source_language: str | None = None,
+) -> str:
     cache_key = _make_cache_key(text, target_language)
     redis_client = _get_redis_client()
 
@@ -101,7 +115,11 @@ def translate_to_target_cached(text: str, target_language: str) -> str:
             redis_client = None
 
     try:
-        translated = translate_to_target(text, target_language)
+        translated = translate_to_target(
+            text=text,
+            target_language=target_language,
+            source_language=source_language,
+        )
     except Exception as exc:
         logger.error("DeepSeek translation failed: %s", exc)
         return text
@@ -124,24 +142,73 @@ def translate_to_target_cached(text: str, target_language: str) -> str:
 
 
 def evaluate_reading(payload: ReadingEvaluateRequest) -> ReadingEvaluateResponse:
+    """
+    Reading comprehension evaluation pipeline:
+
+    1. Student writes summary in native or target language
+    2. Summary is translated into target language
+    3. Semantic similarity is computed (target ↔ target)
+    4. CEFR-based scoring (A1–C2)
+    5. Missing information detection
+    6. Hallucination detection
+    7. Native-language feedback
+    """
+
+    # -------------------------------------------------
+    # 1. Translation (Redis cache first)
+    # -------------------------------------------------
+
     translated_summary = translate_to_target_cached(
         payload.student_summary,
         payload.target_language,
     )
+
+    # -------------------------------------------------
+    # 2. Semantic similarity
+    # -------------------------------------------------
 
     similarity = semantic_similarity(
         payload.text,
         translated_summary,
     )
 
-    score = int(similarity * 100)
+    # -------------------------------------------------
+    # 3. CEFR scoring
+    # -------------------------------------------------
 
-    result = "PASS" if similarity >= PASS_THRESHOLD else "FAIL"
+    score, result = evaluate_cefr_similarity(
+        level=payload.level,
+        similarity=similarity,
+    )
+
+    # -------------------------------------------------
+    # 4. Missing & hallucinations
+    # -------------------------------------------------
+
+    missing, hallucinations = extract_missing_and_hallucinations(
+        original_text=payload.text,
+        student_text=translated_summary,
+    )
+
+    # -------------------------------------------------
+    # 5. Feedback text (native language)
+    # -------------------------------------------------
+
+    feedback_native = build_feedback_text(
+        native_language=payload.native_language,
+        result=result,
+        missing=missing,
+        hallucinations=hallucinations,
+    )
+
+    # -------------------------------------------------
+    # 6. Response
+    # -------------------------------------------------
 
     return ReadingEvaluateResponse(
         score=score,
         result=result,
-        feedback_native="",
-        missing=[],
-        hallucinations=[],
+        feedback_native=feedback_native,
+        missing=missing,
+        hallucinations=hallucinations,
     )
