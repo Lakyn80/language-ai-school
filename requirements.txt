@@ -1,7 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.2.2+cpu
 
-numpy<2
+torch==2.2.2+cpu
 
 fastapi
 uvicorn
@@ -9,14 +8,22 @@ python-dotenv
 pydantic
 pydantic-settings
 
+# RAG
 sentence-transformers
-transformers<5
 faiss-cpu
 
+# LLM
 openai
 
+# cache
+redis==7.1.0
+
+# tests
 pytest
 httpx
 
+# db
 sqlalchemy>=2.0,<3.0
-psycopg2-binary==2.9.9
+
+# FIX: numpy 2.x breaks torch in this stack
+numpy<2
