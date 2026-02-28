@@ -1,20 +1,20 @@
 {
   "titles": [
     {
-      "id": "harry_potter_1",
-      "name": "Harry Potter and the Philosopher's Stone",
-      "universe": "Harry Potter",
+      "id": "secret_agent",
+      "name": "Secret Agent Mission",
+      "universe": "Global Intelligence Network",
       "language": "EN",
       "level": "A2",
-      "description": "A young boy discovers he is a wizard and begins his education at a magical school."
+      "description": "An undercover agent handles everyday interactions while carrying out a city mission."
     },
     {
-      "id": "lord_of_the_rings",
-      "name": "The Lord of the Rings",
-      "universe": "Middle-earth",
+      "id": "city_market",
+      "name": "City Market Day",
+      "universe": "Modern Urban Life",
       "language": "EN",
-      "level": "B1",
-      "description": "A journey to destroy a powerful ring that threatens the fate of the world."
+      "level": "A1",
+      "description": "A learner navigates shopping, prices, and polite requests in a busy public market."
     }
   ]
 }

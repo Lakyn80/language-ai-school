@@ -1,13 +1,20 @@
-from app.modules.rag.service import search_rag
-from app.modules.lessons.lesson_service import generate_lesson
-from app.modules.lessons.cache.lesson_cache import get_cache
-from app.modules.lessons.cache.cache_key import build_lesson_cache_key
+from app.core.config import settings
+from app.modules.rag import search_rag
+from app.modules.scenes import get_scene_by_slug
+from .lesson_service import generate_lesson
+from .persistence import store_lesson_generation
+from .context_builder import build_lesson_context, scene_to_payload
+from .cache.lesson_cache import get_cache
+from .cache.cache_key import build_lesson_cache_key
 from app.pedagogy.difficulty_engine import apply_difficulty_engine
 from app.pedagogy.languages import get_language
 
 
+ALLOWED_MODES = {"strict", "story", "cinematic"}
+_MEMORY_REQUEST_CACHE: dict[tuple[str, str, str, str, str], dict] = {}
+
+
 def load_scene(scene_id: str):
-    from app.modules.scenes.service import get_scene_by_slug
     return get_scene_by_slug(scene_id)
 
 
@@ -19,20 +26,27 @@ def generate_lesson_full(
     target_language: str = "en",
     native_language: str = "ru",
 ):
-    """
-    mode:
-      - strict
-      - story
-      - cinematic
-    """
+    if mode not in ALLOWED_MODES:
+        allowed = ", ".join(sorted(ALLOWED_MODES))
+        raise ValueError(f"Invalid mode '{mode}'. Allowed: {allowed}")
 
     target_lang = get_language(target_language)
     native_lang = get_language(native_language)
 
+    request_cache_key = (
+        title_id,
+        scene_id,
+        level,
+        mode,
+        target_language,
+    )
+    in_memory = _MEMORY_REQUEST_CACHE.get(request_cache_key)
+    if in_memory is not None:
+        return in_memory
+
     cache = get_cache()
 
-    cache_scene_id = f"{scene_id}:{mode}:{target_language}:{native_language}"
-
+    cache_scene_id = f"{scene_id}:{mode}:{target_language}"
     cache_key = build_lesson_cache_key(
         title_id=title_id,
         scene_id=cache_scene_id,
@@ -49,72 +63,17 @@ def generate_lesson_full(
     if scene is None:
         raise FileNotFoundError(f"Scene '{scene_id}' not found")
 
-    if not isinstance(scene, dict):
-        scene_data = {
-            "location": getattr(scene, "slug", ""),
-            "learning_goal": getattr(scene, "description", ""),
-            "grammar_targets": [],
-            "vocabulary_core": [],
-            "dialogue_roles": [],
-        }
-    else:
-        scene_data = scene
-
-    # ---------- STYLE BLOCK ----------
-
-    if mode == "cinematic":
-        style_block = "CINEMATIC storytelling with dialogue and atmosphere."
-    elif mode == "story":
-        style_block = "Narrative storytelling with emotion."
-    else:
-        style_block = "STRICT language learning style."
-
-    # ---------- CONTEXT ----------
-
-    context_blocks = []
-
-    texts = [
-        item["text"]
-        for item in rag_results
-        if isinstance(item, dict) and "text" in item
-    ]
-
-    context_blocks.extend(texts)
-
-    context_blocks.append(
-        f"""
-LANGUAGE SETTINGS:
-
-TARGET LANGUAGE: {target_lang.name}
-STUDENT NATIVE LANGUAGE: {native_lang.name}
-
-Language properties:
-- script: {target_lang.script}
-- sentence order: {target_lang.sentence_order}
-- articles: {target_lang.articles}
-- cases: {target_lang.cases}
-- genders: {target_lang.genders}
-
-STYLE:
-{style_block}
-
-SCENE:
-Location: {scene_data["location"]}
-Goal: {scene_data["learning_goal"]}
-Grammar: {", ".join(scene_data["grammar_targets"])}
-Vocabulary: {", ".join(scene_data["vocabulary_core"])}
-Dialogue roles: {", ".join(scene_data["dialogue_roles"])}
-"""
+    scene_data = scene_to_payload(scene)
+    full_context = build_lesson_context(
+        rag_results=rag_results,
+        scene_data=scene_data,
+        target_lang=target_lang,
+        native_lang=native_lang,
+        mode=mode,
     )
-
-    full_context = "\n\n".join(context_blocks)
 
     lesson = generate_lesson(level, full_context)
-
-    difficulty = apply_difficulty_engine(
-        lesson.get("story", ""),
-        level,
-    )
+    difficulty = apply_difficulty_engine(lesson.get("story", ""), level)
 
     result = {
         "level": level,
@@ -128,5 +87,13 @@ Dialogue roles: {", ".join(scene_data["dialogue_roles"])}
         "lesson": lesson,
     }
 
+    if settings.lessons_persist_generations:
+        store_lesson_generation(
+            level=level,
+            input_context=full_context,
+            result=result,
+        )
+
     cache.set(cache_key, result)
+    _MEMORY_REQUEST_CACHE[request_cache_key] = result
     return result

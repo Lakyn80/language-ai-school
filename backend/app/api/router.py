@@ -6,6 +6,7 @@ from app.modules.rag.router import router as rag_router
 from app.modules.lessons.router import router as lessons_router
 from app.modules.scenes.router import router as scenes_router
 from app.modules.reading.router import router as reading_router
+from app.modules.adaptive.router import router as adaptive_router
 
 api_router = APIRouter()
 
@@ -43,4 +44,10 @@ api_router.include_router(
     reading_router,
     prefix="/reading",
     tags=["reading"]
+)
+
+api_router.include_router(
+    adaptive_router,
+    prefix="/adaptive",
+    tags=["adaptive"]
 )

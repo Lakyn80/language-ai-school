@@ -24,3 +24,8 @@ Thumbs.db
 __pycache__/
 node_modules/
 huggingface cache
+
+# Generated datasets / exports
+app/data/imdb/
+app/data/adaptive_runs/
+app/data/adaptive_history/

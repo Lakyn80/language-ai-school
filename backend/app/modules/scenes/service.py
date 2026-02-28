@@ -1,93 +1,54 @@
 from typing import Optional
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.scenes.models import Scene
+from app.shared.database import managed_session
+
+from .models import Scene
+from . import repository
+from .seed import seed_default_scenes as _seed_default_scenes
 
 
-def _get_session(db: Optional[Session]) -> tuple[Session, bool]:
-    if db is None:
-        from app.db.session import SessionLocal
-        return SessionLocal(), True
-    return db, False
+def seed_default_scenes(db: Optional[Session] = None) -> int:
+    with managed_session(db) as session:
+        return _seed_default_scenes(session)
 
 
 def create_scene(data: dict, db: Optional[Session] = None) -> Scene:
-    db, should_close = _get_session(db)
-    try:
-        scene = Scene(**data)
-        db.add(scene)
-        db.commit()
-        db.refresh(scene)
-        return scene
-    finally:
-        if should_close:
-            db.close()
+    with managed_session(db) as session:
+        return repository.create_scene(session, data)
 
 
-def get_scene_by_id(scene_id: int, db: Optional[Session] = None) -> Optional[Scene]:
-    db, should_close = _get_session(db)
-    try:
-        stmt = select(Scene).where(Scene.id == scene_id)
-        return db.execute(stmt).scalar_one_or_none()
-    finally:
-        if should_close:
-            db.close()
+def get_scene_by_id(scene_id: int, db: Optional[Session] = None) -> Scene | None:
+    with managed_session(db) as session:
+        return repository.get_scene_by_id(session, scene_id)
 
 
-def get_scene_by_slug(slug: str, db: Optional[Session] = None) -> Optional[Scene]:
-    db, should_close = _get_session(db)
-    try:
-        stmt = select(Scene).where(Scene.slug == slug)
-        return db.execute(stmt).scalar_one_or_none()
-    finally:
-        if should_close:
-            db.close()
+def get_scene_by_slug(slug: str, db: Optional[Session] = None) -> Scene | None:
+    with managed_session(db) as session:
+        scene = repository.get_scene_by_slug(session, slug)
+        if scene is not None:
+            return scene
+
+        _seed_default_scenes(session)
+        return repository.get_scene_by_slug(session, slug)
 
 
 def list_scenes(db: Optional[Session] = None) -> list[Scene]:
-    db, should_close = _get_session(db)
-    try:
-        stmt = select(Scene).order_by(Scene.id)
-        return db.execute(stmt).scalars().all()
-    finally:
-        if should_close:
-            db.close()
+    with managed_session(db) as session:
+        scenes = repository.list_scenes(session)
+        if scenes:
+            return scenes
+
+        _seed_default_scenes(session)
+        return repository.list_scenes(session)
 
 
-def update_scene(scene_id: int, data: dict, db: Optional[Session] = None) -> Optional[Scene]:
-    db, should_close = _get_session(db)
-    try:
-        stmt = select(Scene).where(Scene.id == scene_id)
-        scene = db.execute(stmt).scalar_one_or_none()
-        if scene is None:
-            return None
-
-        for key, value in data.items():
-            if value is not None:
-                setattr(scene, key, value)
-
-        db.add(scene)
-        db.commit()
-        db.refresh(scene)
-        return scene
-    finally:
-        if should_close:
-            db.close()
+def update_scene(scene_id: int, data: dict, db: Optional[Session] = None) -> Scene | None:
+    with managed_session(db) as session:
+        return repository.update_scene(session, scene_id, data)
 
 
-def delete_scene(scene_id: int, db: Optional[Session] = None) -> Optional[Scene]:
-    db, should_close = _get_session(db)
-    try:
-        stmt = select(Scene).where(Scene.id == scene_id)
-        scene = db.execute(stmt).scalar_one_or_none()
-        if scene is None:
-            return None
-
-        db.delete(scene)
-        db.commit()
-        return scene
-    finally:
-        if should_close:
-            db.close()
+def delete_scene(scene_id: int, db: Optional[Session] = None) -> Scene | None:
+    with managed_session(db) as session:
+        return repository.delete_scene(session, scene_id)

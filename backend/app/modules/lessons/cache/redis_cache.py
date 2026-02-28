@@ -1,24 +1,33 @@
-import redis
 import json
-import os
+from typing import Optional
 
-REDIS_HOST = os.getenv("REDIS_HOST", "redis")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+import redis
 
-_client = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    db=REDIS_DB,
-    decode_responses=True,
-)
 
-def _key(text: str, src: str, tgt: str) -> str:
-    return f"translation:{src}:{tgt}:{hash(text)}"
+class RedisLessonCache:
+    def __init__(self, redis_url: str):
+        self._client = redis.from_url(redis_url, decode_responses=True)
 
-def get_cached_translation(text: str, src: str, tgt: str) -> str | None:
-    value = _client.get(_key(text, src, tgt))
-    return value
+    def get(self, key: str) -> Optional[dict]:
+        try:
+            payload = self._client.get(key)
+        except Exception:
+            return None
 
-def set_cached_translation(text: str, src: str, tgt: str, translated: str) -> None:
-    _client.set(_key(text, src, tgt), translated)
+        if payload is None:
+            return None
+
+        try:
+            data = json.loads(payload)
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            return None
+
+        return None
+
+    def set(self, key: str, value: dict) -> None:
+        try:
+            self._client.set(key, json.dumps(value, ensure_ascii=False))
+        except Exception:
+            return

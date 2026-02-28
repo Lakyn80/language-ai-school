@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     postgres_user: str = "language_ai"
     postgres_password: str = "language_ai_pass"
 
+    # ---------- LESSONS ----------
+    lessons_persist_generations: bool = False
+    lessons_cache_backend: str = "memory"
+
+    # ---------- READING ----------
+    use_langgraph_reading: bool = False
+
     class Config:
         env_file = ".env"
 

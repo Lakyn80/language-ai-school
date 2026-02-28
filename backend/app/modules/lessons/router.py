@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-from app.modules.lessons.lesson_orchestrator import generate_lesson_full
+from .lesson_orchestrator import generate_lesson_full
 
 router = APIRouter()
 
@@ -15,17 +15,17 @@ def generate_lesson(
     mode: str = Query(
         "strict",
         description="Generation mode",
-        enum=["strict", "story", "cinematic"],
+        examples=["strict", "story", "cinematic"],
     ),
     target_language: str = Query(
         "en",
         description="Language being learned",
-        example="en",
+        examples=["en"],
     ),
     native_language: str = Query(
         "ru",
         description="Student native language",
-        example="ru",
+        examples=["ru"],
     ),
 ):
     """
@@ -57,3 +57,8 @@ def generate_lesson(
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    except RuntimeError as e:
+        message = str(e).lower()
+        status_code = 503 if "not configured" in message else 502
+        raise HTTPException(status_code=status_code, detail=str(e))

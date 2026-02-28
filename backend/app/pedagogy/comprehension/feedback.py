@@ -1,9 +1,8 @@
+import re
 from typing import List, Tuple
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-
-model = SentenceTransformer('all-MiniLM-L6-v2')
+from .evaluator import get_model
 
 
 def split_sentences(text: str) -> List[str]:
@@ -12,6 +11,28 @@ def split_sentences(text: str) -> List[str]:
         for s in text.replace('!', '.').replace('?', '.').split('.')
         if s.strip()
     ]
+
+
+def _tokens(text: str) -> set[str]:
+    return set(re.findall(r"\w+", text.lower()))
+
+
+def _max_token_overlap(sentence: str, candidates: List[str]) -> float:
+    sentence_tokens = _tokens(sentence)
+    if not sentence_tokens:
+        return 0.0
+
+    best = 0.0
+    for candidate in candidates:
+        candidate_tokens = _tokens(candidate)
+        if not candidate_tokens:
+            continue
+        score = len(sentence_tokens & candidate_tokens) / len(
+            sentence_tokens | candidate_tokens
+        )
+        if score > best:
+            best = score
+    return best
 
 
 def extract_missing_and_hallucinations(
@@ -30,6 +51,21 @@ def extract_missing_and_hallucinations(
 
     if not original_sentences or not student_sentences:
         return [], []
+
+    model = get_model()
+    if model is None:
+        lexical_threshold = 0.25
+        missing = [
+            sentence
+            for sentence in original_sentences
+            if _max_token_overlap(sentence, student_sentences) < lexical_threshold
+        ]
+        hallucinated = [
+            sentence
+            for sentence in student_sentences
+            if _max_token_overlap(sentence, original_sentences) < lexical_threshold
+        ]
+        return missing, hallucinated
 
     original_embeddings = model.encode(original_sentences)
     student_embeddings = model.encode(student_sentences)

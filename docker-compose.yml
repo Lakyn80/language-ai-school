@@ -7,8 +7,21 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://app:app@postgres:5432/app
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      LESSONS_PERSIST_GENERATIONS: "true"
+      LESSONS_CACHE_BACKEND: redis
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8086:8086"
     volumes:
@@ -16,22 +29,40 @@ services:
     command: >
       sh -c "python -m pip show redis >/dev/null 2>&1 || python -m pip install --no-cache-dir redis;
       exec uvicorn main:app --host 0.0.0.0 --port 8086"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/api/health/', timeout=5).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
   redis:
     image: redis:7-alpine
     container_name: language-ai-redis
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
     restart: unless-stopped
   postgres:
     image: postgres:15
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
       POSTGRES_DB: app
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 volumes:
   redis_data:
   postgres_data:

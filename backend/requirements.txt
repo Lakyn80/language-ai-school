@@ -9,11 +9,14 @@ python-dotenv
 pydantic
 pydantic-settings
 
-sentence-transformers
-transformers<5
+sentence-transformers==2.7.0
+transformers==4.41.2
+huggingface-hub>=0.23,<1.0
 faiss-cpu
 
 openai
+langchain
+langgraph
 
 redis==7.1.0
 
@@ -21,4 +24,6 @@ pytest
 httpx
 
 sqlalchemy>=2.0,<3.0
+alembic==1.13.2
+psycopg[binary]
 psycopg2-binary==2.9.9

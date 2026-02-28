@@ -1,6 +1,6 @@
 import hashlib
 
-from app.modules.lessons.cache.redis_cache import _client
+from .cache import get_cached_translation, set_cached_translation
 
 
 def build_translation_cache_key(
@@ -29,10 +29,10 @@ def translate_to_target_cached(
     target_language: str,
 ) -> str:
     key = build_translation_cache_key(text, source_language, target_language)
-    cached = _client.get(key)
+    cached = get_cached_translation(key)
     if cached is not None:
         return cached
 
     translated = translate_to_target(text, source_language, target_language)
-    _client.set(key, translated)
+    set_cached_translation(key, translated)
     return translated

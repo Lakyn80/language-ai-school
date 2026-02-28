@@ -47,3 +47,11 @@ docker-compose.dev.yml
 backend/.env
 backend/.dockerignore
 
+# ======================
+# Generated datasets / exports
+# ======================
+backend/app/data/imdb/
+backend/app/data/adaptive_runs/
+backend/app/data/adaptive_history/
+movies_full.csv
+

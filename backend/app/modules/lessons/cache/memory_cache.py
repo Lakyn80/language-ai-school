@@ -1,5 +1,5 @@
 from typing import Optional
-from app.modules.lessons.cache.lesson_cache import LessonCache
+from .lesson_cache import LessonCache
 
 
 class MemoryLessonCache(LessonCache):
